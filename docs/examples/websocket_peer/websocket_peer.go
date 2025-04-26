@@ -158,7 +158,7 @@ type mockTransport struct {
 	clientID    string
 	server      *mockWebSocketServer
 	connected   bool
-	onDataFuncs []func(*auth.AuthMessage) error
+	onDataFuncs []func(context.Context, *auth.AuthMessage) error
 	mu          sync.Mutex
 }
 
@@ -200,7 +200,7 @@ func (t *mockTransport) Disconnect() error {
 	return nil
 }
 
-func (t *mockTransport) Send(message *auth.AuthMessage) error {
+func (t *mockTransport) Send(ctx context.Context, message *auth.AuthMessage) error {
 	t.mu.Lock()
 	connected := t.connected
 	t.mu.Unlock()
@@ -214,7 +214,7 @@ func (t *mockTransport) Send(message *auth.AuthMessage) error {
 	return nil
 }
 
-func (t *mockTransport) OnData(callback func(*auth.AuthMessage) error) error {
+func (t *mockTransport) OnData(callback func(context.Context, *auth.AuthMessage) error) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -222,15 +222,25 @@ func (t *mockTransport) OnData(callback func(*auth.AuthMessage) error) error {
 	return nil
 }
 
+func (t *mockTransport) GetRegisteredOnData() (func(context.Context, *auth.AuthMessage) error, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if len(t.onDataFuncs) == 0 {
+		return nil, fmt.Errorf("no callback registered")
+	}
+	return t.onDataFuncs[0], nil
+}
+
 func (t *mockTransport) handleMessage(message *auth.AuthMessage) {
 	t.mu.Lock()
-	handlers := make([]func(*auth.AuthMessage) error, len(t.onDataFuncs))
+	handlers := make([]func(context.Context, *auth.AuthMessage) error, len(t.onDataFuncs))
 	copy(handlers, t.onDataFuncs)
 	t.mu.Unlock()
 
 	for _, handler := range handlers {
 		// Errors from handlers are not propagated
-		_ = handler(message)
+		_ = handler(ctx, message)
 	}
 }
 

@@ -272,6 +272,16 @@ func (t *SimplifiedHTTPTransport) OnData(callback func(context.Context, *auth.Au
 	return nil
 }
 
+func (t *SimplifiedHTTPTransport) GetRegisteredOnData() (func(context.Context, *auth.AuthMessage) error, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if len(t.onDataFuncs) == 0 {
+		return nil, errors.New("no callback registered")
+	}
+	return t.onDataFuncs[0], nil
+}
+
 // notifyHandlers calls all registered callbacks with the received message
 func (t *SimplifiedHTTPTransport) notifyHandlers(ctx context.Context, message *auth.AuthMessage) {
 	t.mu.Lock()
